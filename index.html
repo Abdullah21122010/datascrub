@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataScrub</title>
+    
+    <title>DataScrub | Free Browser-Based CSV & Excel Data Cleaner</title>
+    <meta name="title" content="DataScrub | Free Browser-Based CSV & Excel Data Cleaner">
+    <meta name="description" content="A fast, secure, browser-based tool to clean messy data, remove duplicates, normalize emails, and fix capitalization in CSV and XLSX files instantly.">
+    <meta name="keywords" content="data cleaner, format CSV, fix excel data, remove duplicates, normalize emails, data scrubbing tool">
+    <meta name="author" content="Your Name">
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -334,13 +340,15 @@
                     <input type="password" required placeholder="••••••••">
                 </div>
                 
-                <button type="submit" class="btn-full" style="margin-top: 24px;">
+                <div id="auth-message" style="color: var(--accent); font-size: 13px; text-align: center; margin-bottom: 12px; display: none;"></div>
+                
+                <button type="submit" class="btn-full" style="margin-top: 12px;">
                     <div class="spinner" id="auth-spinner"></div>
                     <span id="auth-submit-btn-text">Log In</span>
                 </button>
 
                 <div class="auth-switch" id="auth-switch-text">
-                    </div>
+                </div>
             </form>
         </div>
     </div>
@@ -446,20 +454,23 @@
     <script>
         // --- AUTHENTICATION LOGIC ---
         let currentAuthMode = 'login';
-        
+
         function openAuthModal(mode) {
             currentAuthMode = mode;
             updateAuthModalUI();
+            document.getElementById('auth-message').style.display = 'none'; // Clear messages
             document.getElementById('auth-modal').style.display = 'flex';
         }
 
         function closeAuthModal() {
             document.getElementById('auth-modal').style.display = 'none';
             document.getElementById('auth-form').reset();
+            document.getElementById('auth-message').style.display = 'none';
         }
 
         function toggleAuthMode() {
             currentAuthMode = currentAuthMode === 'login' ? 'signup' : 'login';
+            document.getElementById('auth-message').style.display = 'none'; // Clear messages on manual toggle
             updateAuthModalUI();
         }
 
@@ -475,13 +486,52 @@
                 : `Already have an account? <a onclick="toggleAuthMode()">Log in</a>`;
         }
 
+        // Helper to show inline messages
+        function showAuthMessage(msg) {
+            const msgBox = document.getElementById('auth-message');
+            msgBox.innerText = msg;
+            msgBox.style.display = 'block';
+        }
+
+        // Helper to get users from our mock DB (localStorage)
+        function getRegisteredEmails() {
+            return JSON.parse(localStorage.getItem('dataScrubUsers') || '[]');
+        }
+
         function handleAuthSubmit(e) {
             e.preventDefault();
-            const email = document.getElementById('auth-email').value;
+            const email = document.getElementById('auth-email').value.trim().toLowerCase();
             const btnText = document.getElementById('auth-submit-btn-text');
             const spinner = document.getElementById('auth-spinner');
             const submitBtn = document.querySelector('#auth-form button[type="submit"]');
 
+            // Fetch mock DB and check if email exists
+            const users = getRegisteredEmails();
+            const emailExists = users.includes(email);
+
+            // LOGIC: If signing up but email exists -> Switch to Login
+            if (currentAuthMode === 'signup' && emailExists) {
+                currentAuthMode = 'login';
+                updateAuthModalUI();
+                showAuthMessage("Email already registered. We switched you to Log In.");
+                return; // Stop submission so they can enter password for login
+            }
+
+            // LOGIC: If logging in but email DOES NOT exist -> Switch to Sign Up
+            if (currentAuthMode === 'login' && !emailExists) {
+                currentAuthMode = 'signup';
+                updateAuthModalUI();
+                showAuthMessage("Email not found. We switched you to Sign Up.");
+                return; // Stop submission so they can enter their name
+            }
+
+            // If validation passes, register the new user if they are signing up
+            if (currentAuthMode === 'signup') {
+                users.push(email);
+                localStorage.setItem('dataScrubUsers', JSON.stringify(users));
+            }
+
+            // Proceed with the successful auth animation
             btnText.innerText = 'Processing...';
             spinner.style.display = 'block';
             submitBtn.style.pointerEvents = 'none';
